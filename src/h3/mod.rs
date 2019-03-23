@@ -383,8 +383,8 @@ impl Connection {
         header_block.truncate(len);
 
         let mut b = octets::Octets::with_slice(&mut d);
+        b.put_varint(frame::HEADERS_FRAME_TYPE_ID)?;
         b.put_varint(len as u64)?;
-        b.put_u8(frame::HEADERS_FRAME_TYPE_ID)?;
 
         let off = b.off();
 
@@ -412,8 +412,8 @@ impl Connection {
         let mut d = [42; 10];
 
         let mut b = octets::Octets::with_slice(&mut d);
+        b.put_varint(frame::DATA_FRAME_TYPE_ID)?;
         b.put_varint(body.len() as u64)?;
-        b.put_u8(frame::DATA_FRAME_TYPE_ID)?;
 
         let off = b.off();
 
@@ -543,11 +543,13 @@ impl Connection {
     ) -> Result<()> {
         if self.control_stream_id.is_none() {
             let stream_id = self.get_available_uni_stream()?;
-            conn.stream_send(
-                stream_id,
-                &stream::HTTP3_CONTROL_STREAM_TYPE_ID.to_be_bytes(),
-                false,
-            )?;
+
+            let mut d = [42; 8];
+            let mut b = octets::Octets::with_slice(&mut d);
+            b.put_varint(stream::HTTP3_CONTROL_STREAM_TYPE_ID)?;
+            let off = b.off();
+
+            conn.stream_send(stream_id, &d[..off], false)?;
 
             self.control_stream_id = Some(stream_id);
         }
@@ -559,22 +561,26 @@ impl Connection {
     fn open_qpack_streams(&mut self, conn: &mut super::Connection) -> Result<()> {
         if self.local_qpack_streams.encoder_stream_id.is_none() {
             let stream_id = self.get_available_uni_stream()?;
-            conn.stream_send(
-                stream_id,
-                &stream::QPACK_ENCODER_STREAM_TYPE_ID.to_be_bytes(),
-                false,
-            )?;
+
+            let mut d = [0; 8];
+            let mut b = octets::Octets::with_slice(&mut d);
+            b.put_varint(stream::QPACK_ENCODER_STREAM_TYPE_ID)?;
+            let off = b.off();
+
+            conn.stream_send(stream_id, &d[..off], false)?;
 
             self.local_qpack_streams.encoder_stream_id = Some(stream_id);
         }
 
         if self.local_qpack_streams.decoder_stream_id.is_none() {
             let stream_id = self.get_available_uni_stream()?;
-            conn.stream_send(
-                stream_id,
-                &stream::QPACK_DECODER_STREAM_TYPE_ID.to_be_bytes(),
-                false,
-            )?;
+
+            let mut d = [0; 8];
+            let mut b = octets::Octets::with_slice(&mut d);
+            b.put_varint(stream::QPACK_DECODER_STREAM_TYPE_ID)?;
+            let off = b.off();
+
+            conn.stream_send(stream_id, &d[..off], false)?;
 
             self.local_qpack_streams.decoder_stream_id = Some(stream_id);
         }
@@ -640,12 +646,14 @@ impl Connection {
         while stream.more() {
             match stream.state() {
                 stream::State::StreamTypeLen => {
-                    let varint_len = 1;
+                    let varint_byte = stream.buf_bytes(1)?[0];
+                    stream.set_next_varint_len(octets::varint_parse_len(
+                        varint_byte,
+                    ))?;
+                },
 
-                    stream.set_stream_type_len(varint_len)?;
-
-                    let varint_bytes = stream.buf_bytes(varint_len as usize)?;
-                    let varint = varint_bytes[0];
+                stream::State::StreamType => {
+                    let varint = stream.get_varint()?;
 
                     let ty = stream::Type::deserialize(varint)?;
 
@@ -701,10 +709,6 @@ impl Connection {
                     }
                 },
 
-                stream::State::StreamType => {
-                    // TODO: populate this in draft 18+
-                },
-
                 stream::State::FramePayloadLenLen => {
                     let varint_byte = stream.buf_bytes(1)?[0];
                     stream.set_next_varint_len(octets::varint_parse_len(
@@ -725,7 +729,7 @@ impl Connection {
                 },
 
                 stream::State::FrameType => {
-                    let varint = stream.get_u8()?;
+                    let varint = stream.get_varint()?;
                     stream.set_frame_type(varint)?;
                 },
 
