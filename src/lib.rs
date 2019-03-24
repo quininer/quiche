@@ -304,6 +304,8 @@ pub struct Config {
     tls_ctx: tls::Context,
 
     application_protos: Vec<Vec<u8>>,
+
+    grease: bool,
 }
 
 impl Config {
@@ -316,6 +318,7 @@ impl Config {
             version,
             tls_ctx,
             application_protos: Vec::new(),
+            grease: true,
         })
     }
 
@@ -341,6 +344,11 @@ impl Config {
     /// Configures whether to verify the peer's certificate.
     pub fn verify_peer(&mut self, verify: bool) {
         self.tls_ctx.set_verify(verify);
+    }
+
+    /// Configures whether to send GREASE values.
+    pub fn send_grease(&mut self, grease: bool) {
+        self.grease = grease;
     }
 
     /// Enables logging of secrets.
@@ -572,6 +580,9 @@ pub struct Connection {
 
     /// Whether the connection is closed.
     closed: bool,
+
+    /// Whether to send GREASE.
+    grease: bool,
 }
 
 /// Creates a new server-side connection.
@@ -727,6 +738,8 @@ impl Connection {
             draining: false,
 
             closed: false,
+
+            grease: config.grease,
         });
 
         if let Some(odcid) = odcid {

@@ -107,6 +107,11 @@ pub extern fn quiche_config_verify_peer(config: &mut Config, v: bool) {
 }
 
 #[no_mangle]
+pub extern fn quiche_config_send_grease(config: &mut Config, v: bool) {
+    config.send_grease(v);
+}
+
+#[no_mangle]
 pub extern fn quiche_config_log_keys(config: &mut Config) {
     config.log_keys();
 }

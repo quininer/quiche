@@ -48,6 +48,7 @@ Options:
   --root <dir>      Root directory [default: examples/root/]
   --name <str>      Name of the server [default: quic.tech]
   --no-retry        Disable stateless retry.
+  --no-grease       Don't send GREASE.
   -h --help         Show this screen.
 ";
 
@@ -102,6 +103,10 @@ fn main() -> Result<(), Box<std::error::Error>> {
 
     if std::env::var_os("SSLKEYLOGFILE").is_some() {
         config.log_keys();
+    }
+
+    if args.get_bool("--no-grease") {
+        config.send_grease(false);
     }
 
     loop {
