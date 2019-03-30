@@ -3062,8 +3062,9 @@ pub use crate::packet::Header;
 pub use crate::packet::Type;
 pub use crate::stream::Readable;
 
-mod crypto;
+#[cfg(feature = "ffi")]
 mod ffi;
+mod crypto;
 mod frame;
 pub mod h3;
 mod octets;

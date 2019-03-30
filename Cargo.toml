@@ -20,7 +20,9 @@ exclude = [
 ]
 
 [features]
+default = ["ffi"]
 no_bssl = []
+ffi = []
 
 [package.metadata.docs.rs]
 features = ["no_bssl"]
